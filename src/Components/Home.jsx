@@ -15,15 +15,13 @@ const Home = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [notification, setNotification] = useState(null);
   const [uploadSettings, setUploadSettings] = useState({
-    isTemporary: false,
+    isTemporary: true,
     expiresInHours: 24,
-    password: "",
-    maxDownloads: 0,
   });
 
   const fileInputRef = useRef(null);
   return (
-    <div className="flex min-h-screen bg-gray-50">
+    <div className="flex min-h-screen bg-gray-50 ">
       {/* Sidebar */}
       <Sidebar
         currentView={currentView}
