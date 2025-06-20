@@ -12,10 +12,6 @@ const Home = () => {
   const [currentView, setCurrentView] = useState("upload");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [notification, setNotification] = useState(null);
-  const [uploadSettings, setUploadSettings] = useState({
-    isTemporary: true,
-    expiresInHours: 24,
-  });
 
   const fileInputRef = useRef(null);
   return (
@@ -54,8 +50,6 @@ const Home = () => {
         {/* Content */}
         <main className="p-6">
           {currentView === "upload" && <UploadView 
-            setUploadSettings={setUploadSettings}
-            uploadSettings={uploadSettings}
             setDragActive={setDragActive}
             dragActive={dragActive}
             setUploadProgress={setUploadProgress}
