@@ -16,6 +16,8 @@ const UploadView = ({
   isUploading,
   uploadProgress,
 }) => {
+
+  
   const [selectedFiles, setSelectedFiles] = useState([]);
 
   // Handle drag and drop events
@@ -53,8 +55,9 @@ const UploadView = ({
     }
   };
 
-  // Maximum file size limit
-  const maxFileSize = 50 * 1024 * 1024;
+  // File size limits
+  const supabaseMaxSize = 50 * 1024 * 1024; // 50MB for Supabase
+  const goFileMaxSize = 5 * 1024 * 1024 * 1024; // 5GB for GoFile (adjust as needed)
 
   // Validate individual file
   const validateFile = (file) => {
@@ -62,8 +65,8 @@ const UploadView = ({
       showNotification(`File type ${file.type} is not allowed`, "error");
       return false;
     }
-    if (file.size > maxFileSize) {
-      showNotification(`File size must be less than 50MB`, "error");
+    if (file.size > goFileMaxSize) {
+      showNotification(`File size must be less than 5GB`, "error");
       return false;
     }
     return true;
@@ -77,14 +80,140 @@ const UploadView = ({
       handleUpload(validFiles);
     }
   };
-
   // Handle file input change
   const handleFileChange = (e) => {
     const files = Array.from(e.target.files);
     handleFiles(files);
   };
 
-  // Upload files to Supabase
+  
+    // Upload to Supabase
+  const uploadToSupabase = async (file, isTemporary = false) => {
+    const fileExt = file.name.split(".").pop();
+    const fileName = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}.${fileExt}`;
+    const filePath = `${fileName}`;
+    
+    // Choose bucket based on temporary setting
+    const bucketName = isTemporary ? "temp-uploads" : "uploads";
+
+    try {
+      const { data, error } = await supabase.storage
+        .from(bucketName)
+        .upload(filePath, file);
+      console.log("Supabase upload data:", data);
+      if (error) {
+        throw error;
+      }
+
+      const { data: urlData } = await supabase.storage
+        .from(bucketName)
+        .getPublicUrl(filePath);
+      console.log("Supabase public URL data:", urlData);
+    } catch (error) {
+      console.error('Supabase upload error:', error);
+      throw error;
+    }
+  };
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  // // Upload to GoFile API
+  // const uploadToGoFile = async (file) => {
+  //   const formData = new FormData();
+  //   formData.append('file', file);
+
+  //   try {
+  //     const response = await fetch('https://upload.gofile.io/uploadfile', {
+  //       method: 'POST',
+  //       body: formData,
+  //     });
+
+  //     const result = await response.json();
+      
+  //     if (result.status === 'ok') {
+  //       return {
+  //         name: file.name,
+  //         url: result.data.downloadPage,
+  //         directUrl: result.data.directLink,
+  //         size: file.size,
+  //         type: file.type,
+  //         service: 'gofile',
+  //         fileId: result.data.fileId,
+  //         adminCode: result.data.adminCode,
+  //       };
+  //     } else {
+  //       throw new Error(result.error?.message || 'GoFile upload failed');
+  //     }
+  //   } catch (error) {
+  //     console.error('GoFile upload error:', error);
+  //     throw error;
+  //   }
+  // };
+
+
+const uploadToGoFile = async (file, setNotification) => {
+  const token = import.meta.env.VITE_GOFILE_API_TOKEN;
+
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("token", token); // optional but recommended for managing uploads
+
+  try {
+    const res = await fetch("https://api.gofile.io/uploadFile", {
+      method: "POST",
+      body: formData,
+    });
+
+    const json = await res.json();
+
+    if (json.status === "ok") {
+      const downloadPage = json.data.downloadPage;
+      console.log("File uploaded! Link:", downloadPage);
+
+      setNotification?.({ message: "File uploaded successfully!", type: "success" });
+
+      return {
+        fileUrl: downloadPage,
+        fileName: file.name,
+      };
+    } else {
+      throw new Error(json.status);
+    }
+  } catch (err) {
+    console.error("Upload failed:", err);
+    setNotification?.({ message: "Upload failed", type: "error" });
+    return null;
+  }
+};
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  // Main upload function
   const handleUpload = async (files) => {
     if (!files || files.length === 0) {
       showNotification("No files selected for upload.", "error");
@@ -96,46 +225,70 @@ const UploadView = ({
 
     try {
       const uploadedFiles = [];
+      let supabaseFiles = [];
+      let goFileFiles = [];
 
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        const fileExt = file.name.split(".").pop();
-        const fileName = `${Date.now()}_${i}.${fileExt}`;
-        const filePath = `${fileName}`;
-
-        // Update progress for current file
-        const baseProgress = (i / files.length) * 100;
-        setUploadProgress(baseProgress);
-
-        const { data, error } = await supabase.storage
-          .from("uploads")
-          .upload(filePath, file);
-        console.log("data:", data);
-        if (error) {
-          throw error;
+      // Categorize files by size
+      files.forEach(file => {
+        if (file.size <= supabaseMaxSize) {
+          supabaseFiles.push(file);
+        } else {
+          goFileFiles.push(file);
         }
+      });
 
-        const { data: urlData } = await supabase.storage
-          .from("uploads")
-          .getPublicUrl(filePath);
+      const totalFiles = files.length;
+      let completedFiles = 0;
 
-        uploadedFiles.push({
-          name: file.name,
-          url: urlData.publicUrl,
-          size: file.size,
-          type: file.type,
-        });
+      // Upload small files to Supabase
+      for (const file of supabaseFiles) {
+        try {
+          const uploadedFile = await uploadToSupabase(file, uploadSettings.isTemporary);
+          uploadedFiles.push(uploadedFile);
+          
+          completedFiles++;
+          setUploadProgress((completedFiles / totalFiles) * 100);
+        } catch (error) {
+          console.error(`Failed to upload ${file.name} to Supabase:`, error);
+          showNotification(`Failed to upload ${file.name} to Supabase`, "error");
+        }
+      }
 
-        // Update progress after each file
-        setUploadProgress(((i + 1) / files.length) * 100);
+      // Upload large files to GoFile
+      for (const file of goFileFiles) {
+        try {
+          const uploadedFile = await uploadToGoFile(file);
+          uploadedFiles.push(uploadedFile);
+          
+          completedFiles++;
+          setUploadProgress((completedFiles / totalFiles) * 100);
+        } catch (error) {
+          console.error(`Failed to upload ${file.name} to GoFile:`, error);
+          showNotification(`Failed to upload ${file.name} to GoFile`, "error");
+        }
       }
 
       // Update uploaded files list
       setUploadedFiles((prev) => [...(prev || []), ...uploadedFiles]);
-      showNotification(
-        `${files.length} file(s) uploaded successfully!`,
-        "success"
-      );
+      
+      // Show success notification
+      const successCount = uploadedFiles.length;
+      const failedCount = files.length - successCount;
+      
+      if (successCount > 0) {
+        let message = `${successCount} file(s) uploaded successfully!`;
+        if (supabaseFiles.length > 0 && goFileFiles.length > 0) {
+          message += ` (${supabaseFiles.length} to Supabase, ${goFileFiles.length} to GoFile)`;
+        }
+        if (uploadSettings.isTemporary && supabaseFiles.length > 0) {
+          message += ` Files will expire in ${uploadSettings.expiresInHours} hours.`;
+        }
+        showNotification(message, "success");
+      }
+      
+      if (failedCount > 0) {
+        showNotification(`${failedCount} file(s) failed to upload`, "error");
+      }
 
       // Reset file input
       if (fileInputRef.current) {
@@ -150,6 +303,18 @@ const UploadView = ({
       setUploadProgress(0);
     }
   };
+
+
+
+
+
+
+
+
+
+
+  
+
 
   return (
     <div className="space-y-6">
@@ -291,7 +456,7 @@ const UploadView = ({
 
           <div className="text-sm text-gray-500">
             <p>Supported: Images, PDFs, Documents, Archives, Videos</p>
-            <p>Max file size: 50MB</p>
+            <p>Max file size: 5GB (auto-routed to best service)</p>
             {selectedFiles.length > 0 && (
               <p>{selectedFiles.length} file(s) selected</p>
             )}

@@ -42,7 +42,7 @@ const Home = () => {
               <Menu className="w-5 h-5" />
             </button>
 
-            <div className="bg-red-200 flex items-center space-x-4">
+            <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-2 text-sm text-gray-600">
                 <CheckCircle className="w-4 h-4 text-green-500" />
                 <span>Free Forever</span>
