@@ -41,7 +41,7 @@ const Sidebar = ({ currentView, setCurrentView, uploadedFiles, isAuthenticated, 
           }`}
         >
           <FileText className="w-5 h-5" />
-          <span>My Files</span>
+          <span>Files</span>
           {uploadedFiles.length > 0 && (
             <span className="ml-auto bg-blue-100 text-blue-600 text-xs rounded-full px-2 py-1">
               {uploadedFiles.length}
