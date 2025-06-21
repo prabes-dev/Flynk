@@ -1,8 +1,11 @@
 import AllowedFileTypes from "./AllowedFileTypes";
-import { Upload, AlertCircle } from "lucide-react";
+import { Settings, Upload } from "lucide-react";
+import { supabase } from "./SupaBase";
 import { useState } from "react";
 
 const UploadView = ({
+  uploadSettings,
+  setUploadSettings,
   setDragActive,
   dragActive,
   setUploadProgress,
@@ -13,7 +16,6 @@ const UploadView = ({
   isUploading,
   uploadProgress,
 }) => {
-  
   const [selectedFiles, setSelectedFiles] = useState([]);
 
   // Handle drag and drop events
@@ -36,28 +38,23 @@ const UploadView = ({
     handleFiles(files);
   };
 
-  // Improved notification function with better error handling
+  // Fixed showNotification function
   const showNotification = (message, type = "success") => {
     try {
-      if (typeof setNotification === "function") {
-        setNotification({ message, type });
-        
-        // Auto-dismiss after 5 seconds
-        setTimeout(() => {
+      setNotification({ message, type });
+      setTimeout(() => {
+        if (typeof setNotification === "function") {
           setNotification(null);
-        }, 5000);
-      } else {
-        console.warn("setNotification is not a function");
-        console.log(`Notification: ${type.toUpperCase()} - ${message}`);
-      }
+        }
+      }, 5000);
     } catch (error) {
       console.error("Error showing notification:", error);
       console.log(`Fallback notification: ${type.toUpperCase()} - ${message}`);
     }
   };
 
-  // File size limits
-  const goFileMaxSize = 5 * 1024 * 1024 * 1024;
+  // Maximum file size limit
+  const maxFileSize = 50 * 1024 * 1024;
 
   // Validate individual file
   const validateFile = (file) => {
@@ -65,8 +62,8 @@ const UploadView = ({
       showNotification(`File type ${file.type} is not allowed`, "error");
       return false;
     }
-    if (file.size > goFileMaxSize) {
-      showNotification(`File size must be less than 5GB`, "error");
+    if (file.size > maxFileSize) {
+      showNotification(`File size must be less than 50MB`, "error");
       return false;
     }
     return true;
@@ -80,115 +77,14 @@ const UploadView = ({
       handleUpload(validFiles);
     }
   };
-  
+
   // Handle file input change
   const handleFileChange = (e) => {
     const files = Array.from(e.target.files);
     handleFiles(files);
   };
 
-
-
-
-
-
-
-
-
-  // Upload function for GoFile with better error handling
-  const uploadToGoFile = async (file) => {
-    const token = import.meta.env.VITE_GOFILE_API_TOKEN;
-
-    // Check if token exists
-    if (!token) {
-      const error = "GoFile API token is missing. Please check your environment variables.";
-      console.error(error);
-      throw new Error(error);
-    }
-
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("token", token);
-
-    try {
-      console.log("Getting GoFile server...");
-      
-      // First get the best server to upload to
-      const serverResponse = await fetch("https://api.gofile.io/servers");
-      
-      if (!serverResponse.ok) {
-        throw new Error(`Server request failed: ${serverResponse.status} ${serverResponse.statusText}`);
-      }
-      
-      const serverJson = await serverResponse.json();
-      
-      if (serverJson.status !== "ok") {
-        throw new Error(`Failed to get upload server: ${serverJson.status}`);
-      }
-      
-      const server = serverJson.data.server;
-      console.log("Got server:", server);
-      
-      // Now upload to the recommended server
-      const uploadUrl = `https://upload.gofile.io/uploadfile`;
-      console.log("Uploading to:", uploadUrl);
-      
-      const res = await fetch(uploadUrl, {
-        method: "POST",
-        body: formData,
-      });
-
-      console.log("Upload response status:", res.status, res.statusText);
-
-      if (!res.ok) {
-        const errorText = await res.text();
-        console.error("Upload failed with response:", errorText);
-        throw new Error(`Upload failed: ${res.status} ${res.statusText} - ${errorText}`);
-      }
-
-      const responseText = await res.text();
-      console.log("Raw response:", responseText);
-
-      let json;
-      try {
-        json = JSON.parse(responseText);
-      } catch (parseError) {
-        console.error("Failed to parse JSON response:", responseText);
-        throw new Error(`Invalid JSON response: ${responseText}`, parseError);
-      }
-
-      if (json.status === "ok") {
-        const downloadPage = json.data.downloadPage;
-        const fileId = json.data.fileId;
-        
-        console.log("File uploaded successfully!");
-        console.log("Download page:", downloadPage);
-        console.log("File ID:", fileId);
-
-        return {
-          fileUrl: downloadPage,
-          fileName: file.name,
-          fileId: fileId,
-          uploadedAt: new Date().toISOString()
-        };
-      } else {
-        console.error("Upload failed with status:", json.status);
-        throw new Error(`Upload failed: ${json.status}`);
-      }
-    } catch (err) {
-      console.error("Upload error details:", err);
-      throw err; // Re-throw to be handled by the calling function
-    }
-  };
-
-
-
-
-
-
-
-
-  // Main upload function with improved error handling
+  // Upload files to Supabase
   const handleUpload = async (files) => {
     if (!files || files.length === 0) {
       showNotification("No files selected for upload.", "error");
@@ -200,47 +96,46 @@ const UploadView = ({
 
     try {
       const uploadedFiles = [];
-      const totalFiles = files.length;
-      let completedFiles = 0;
 
-      console.log(`Uploading ${totalFiles} file(s) to GoFile`);
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const fileExt = file.name.split(".").pop();
+        const fileName = `${Date.now()}_${i}.${fileExt}`;
+        const filePath = `${fileName}`;
 
-      // Upload all files to GoFile
-      for (const file of files) {
-        try {
-          const uploadedFile = await uploadToGoFile(file);
-          
-          if (uploadedFile) {
-            uploadedFiles.push(uploadedFile);
-            console.log(`Successfully uploaded: ${file.name}`, uploadedFile);
-          }
-          
-        } catch (error) {
-          console.error(`Failed to upload ${file.name} to GoFile:`, error);
-          showNotification(`Failed to upload ${file.name}: ${error.message}`, "error");
+        // Update progress for current file
+        const baseProgress = (i / files.length) * 100;
+        setUploadProgress(baseProgress);
+
+        const { data, error } = await supabase.storage
+          .from("uploads")
+          .upload(filePath, file);
+        console.log("data:", data);
+        if (error) {
+          throw error;
         }
-        
-        completedFiles++;
-        setUploadProgress((completedFiles / totalFiles) * 100);
+
+        const { data: urlData } = await supabase.storage
+          .from("uploads")
+          .getPublicUrl(filePath);
+
+        uploadedFiles.push({
+          name: file.name,
+          url: urlData.publicUrl,
+          size: file.size,
+          type: file.type,
+        });
+
+        // Update progress after each file
+        setUploadProgress(((i + 1) / files.length) * 100);
       }
 
       // Update uploaded files list
-      if (uploadedFiles.length > 0) {
-        setUploadedFiles((prev) => [...(prev || []), ...uploadedFiles]);
-      }
-      
-      // Show success notification
-      const successCount = uploadedFiles.length;
-      const failedCount = files.length - successCount;
-      
-      if (successCount > 0) {
-        let message = `${successCount} file(s) uploaded successfully! Files will be available for 30 days.`;
-        showNotification(message, "success");
-      }
-      
-      if (failedCount > 0) {
-        showNotification(`${failedCount} file(s) failed to upload`, "error");
-      }
+      setUploadedFiles((prev) => [...(prev || []), ...uploadedFiles]);
+      showNotification(
+        `${files.length} file(s) uploaded successfully!`,
+        "success"
+      );
 
       // Reset file input
       if (fileInputRef.current) {
@@ -256,10 +151,6 @@ const UploadView = ({
     }
   };
 
-
-
-
-
   return (
     <div className="space-y-6">
       <div className="text-center">
@@ -267,38 +158,100 @@ const UploadView = ({
           Share Files Securely
         </h2>
         <p className="text-gray-600">
-          Upload your files and get shareable links instantly. Files are stored for 30 days.
+          Upload your files and get shareable links instantly. No registration
+          required.
         </p>
       </div>
 
-      {/* Environment Variable Warning */}
-      {!import.meta.env.VITE_GOFILE_API_TOKEN && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-          <div className="flex items-center space-x-2">
-            <AlertCircle className="w-5 h-5 text-red-600" />
-            <div className="text-red-800">
-              <strong>Configuration Required:</strong> GoFile API token is missing. 
-              Please add VITE_GOFILE_API_TOKEN to your environment variables.
-            </div>
+      {/* Upload Settings */}
+      <div className="bg-gradient-to-br from-slate-50 to-slate-100/50 rounded-2xl shadow-lg border border-slate-200/60 p-8 backdrop-blur-sm">
+        <h3 className="text-xl font-bold mb-6 flex items-center text-slate-800">
+          <div className="p-2 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl mr-3 shadow-md">
+            <Settings className="w-5 h-5 text-white" />
           </div>
-        </div>
-      )}
+          Upload Settings
+        </h3>
 
-      {/* Info Section */}
-      <div className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-2xl shadow-lg border border-blue-200/60 p-6 backdrop-blur-sm">
-        <div className="flex items-center space-x-3 mb-3">
-          <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
-            <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-            </svg>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="space-y-4">
+            <label className="group relative flex items-center p-4 bg-white/70 backdrop-blur-sm rounded-xl border border-slate-200/60 hover:bg-white/90 hover:border-blue-300/60 transition-all duration-200 cursor-pointer shadow-sm hover:shadow-md">
+              <div className="relative flex items-center">
+                <input
+                  type="checkbox"
+                  checked={uploadSettings.isTemporary}
+                  onChange={(e) =>
+                    setUploadSettings((prev) => ({
+                      ...prev,
+                      isTemporary: e.target.checked,
+                    }))
+                  }
+                  className="sr-only"
+                />
+                <div
+                  className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all duration-200 ${
+                    uploadSettings.isTemporary
+                      ? "bg-gradient-to-r from-blue-500 to-purple-600 border-transparent shadow-sm"
+                      : "border-slate-300 group-hover:border-blue-400"
+                  }`}
+                >
+                  {uploadSettings.isTemporary && (
+                    <svg
+                      className="w-3 h-3 text-white"
+                      fill="currentColor"
+                      viewBox="0 0 20 20"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                  )}
+                </div>
+              </div>
+              <div className="ml-4">
+                <span className="font-medium text-slate-800">
+                  Temporary file
+                </span>
+                <p className="text-xs text-slate-500 mt-1">
+                  File will auto-delete after expiration
+                </p>
+              </div>
+            </label>
           </div>
-          <h3 className="text-lg font-semibold text-slate-800">File Storage Info</h3>
-        </div>
-        <div className="text-sm text-slate-600 space-y-1">
-          <p>• All files are automatically stored for <strong>30 days</strong></p>
-          <p>• Files are securely hosted and accessible worldwide</p>
-          <p>• Maximum file size: <strong>5GB per file</strong></p>
-          <p>• Share your files with anyone using the generated links</p>
+
+          {uploadSettings.isTemporary && (
+            <div className="space-y-2 animate-in slide-in-from-right duration-300">
+              <label className="flex gap-10 items-center text-sm font-semibold text-slate-700 mb-2">
+                <p>Expires in hours</p>
+                <p className="text-xs text-slate-500">
+                  Maximum 168 hours (7 days)
+                </p>
+              </label>
+
+              <div className="relative">
+                <input
+                  type="number"
+                  value={uploadSettings.expiresInHours}
+                  onChange={(e) =>
+                    setUploadSettings((prev) => ({
+                      ...prev,
+                      expiresInHours: parseInt(e.target.value) || 1,
+                    }))
+                  }
+                  className="w-full px-4 py-3 bg-white/70 backdrop-blur-sm border border-slate-200/60 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all duration-200 text-slate-800 font-medium shadow-sm hover:bg-white/90"
+                  min="1"
+                  max="168"
+                  placeholder="24"
+                />
+                <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none">
+                  <span className="text-slate-400 text-sm font-medium">
+                    hrs
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -308,7 +261,7 @@ const UploadView = ({
           dragActive
             ? "border-blue-400 bg-blue-50"
             : "border-gray-300 hover:border-gray-400"
-        } ${isUploading ? "opacity-50 pointer-events-none" : ""}`}
+        }`}
         onDragEnter={handleDrag}
         onDragLeave={handleDrag}
         onDragOver={handleDrag}
@@ -338,7 +291,7 @@ const UploadView = ({
 
           <div className="text-sm text-gray-500">
             <p>Supported: Images, PDFs, Documents, Archives, Videos</p>
-            <p>Max file size: 5GB (auto-routed to best service)</p>
+            <p>Max file size: 50MB</p>
             {selectedFiles.length > 0 && (
               <p>{selectedFiles.length} file(s) selected</p>
             )}
