@@ -1,6 +1,6 @@
-import { X, Upload, FileText, Settings, LogIn } from "lucide-react";
+import { X, Upload, FileText } from "lucide-react";
 
-const Sidebar = ({ currentView, setCurrentView, uploadedFiles, isAuthenticated, setIsAuthenticated, sidebarOpen, setSidebarOpen }) => {
+const Sidebar = ({ currentView, setCurrentView, uploadedFiles, sidebarOpen, setSidebarOpen }) => {
   return (
     <div
       className={`fixed inset-y-0 left-0 z-40 h-screen w-64 bg-white shadow-lg transform ${
@@ -48,41 +48,7 @@ const Sidebar = ({ currentView, setCurrentView, uploadedFiles, isAuthenticated, 
             </span>
           )}
         </button>
-
-        <button
-          onClick={() => setCurrentView("settings")}
-          className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${
-            currentView === "settings"
-              ? "bg-blue-50 text-blue-600"
-              : "hover:bg-gray-100"
-          }`}
-        >
-          <Settings className="w-5 h-5" />
-          <span>Settings</span>
-        </button>
       </nav>
-
-      <div className="absolute bottom-0 left-0 right-0 p-4 border-t">
-        {!isAuthenticated ? (
-          <button
-            onClick={() => setIsAuthenticated(true)}
-            className="w-full flex items-center justify-center space-x-2 px-4 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all"
-          >
-            <LogIn className="w-5 h-5" />
-            <span>Sign In</span>
-          </button>
-        ) : (
-          <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center">
-              <User className="w-4 h-4 text-white" />
-            </div>
-            <div className="flex-1">
-              <p className="text-sm font-medium">John Doe</p>
-              <p className="text-xs text-gray-500">Premium User</p>
-            </div>
-          </div>
-        )}
-      </div>
     </div>
   );
 };

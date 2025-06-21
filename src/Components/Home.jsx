@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import UploadView from "./UploadView";
-import FilesView from "./FIlesView";
+import FilesView from "./FilesView";
 import Sidebar from "./Sidebar";
 import { Menu, Shield, CheckCircle, AlertTriangle } from "lucide-react";
 
@@ -10,13 +10,8 @@ const Home = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState([]);
   const [currentView, setCurrentView] = useState("upload");
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [notification, setNotification] = useState(null);
-  const [uploadSettings, setUploadSettings] = useState({
-    isTemporary: true,
-    expiresInHours: 24,
-  });
 
   const fileInputRef = useRef(null);
   return (
@@ -26,8 +21,6 @@ const Home = () => {
         currentView={currentView}
         setCurrentView={setCurrentView}
         uploadedFiles={uploadedFiles}
-        isAuthenticated={isAuthenticated}
-        setIsAuthenticated={setIsAuthenticated}
         sidebarOpen={sidebarOpen}
         setSidebarOpen={setSidebarOpen}
         setNotification={setNotification}
@@ -62,8 +55,6 @@ const Home = () => {
         {/* Content */}
         <main className="p-6">
           {currentView === "upload" && <UploadView 
-            setUploadSettings={setUploadSettings}
-            uploadSettings={uploadSettings}
             setDragActive={setDragActive}
             dragActive={dragActive}
             setUploadProgress={setUploadProgress}
