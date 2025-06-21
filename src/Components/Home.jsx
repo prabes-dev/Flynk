@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import UploadView from "./UploadView";
-import FilesView from "./FilesView";
+import FilesView from "./FIlesView";
 import Sidebar from "./Sidebar";
 import { Menu, Shield, CheckCircle, AlertTriangle } from "lucide-react";
 
@@ -10,6 +10,7 @@ const Home = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState([]);
   const [currentView, setCurrentView] = useState("upload");
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [notification, setNotification] = useState(null);
   const [uploadSettings, setUploadSettings] = useState({
@@ -25,6 +26,8 @@ const Home = () => {
         currentView={currentView}
         setCurrentView={setCurrentView}
         uploadedFiles={uploadedFiles}
+        isAuthenticated={isAuthenticated}
+        setIsAuthenticated={setIsAuthenticated}
         sidebarOpen={sidebarOpen}
         setSidebarOpen={setSidebarOpen}
         setNotification={setNotification}
@@ -42,7 +45,12 @@ const Home = () => {
               <Menu className="w-5 h-5" />
             </button>
 
-            <div className="bg-red-200 flex items-center space-x-4">
+            <div className="flex items-center space-x-4">
+              <div className="hidden md:flex items-center space-x-2 text-sm text-gray-600">
+                <Shield className="w-4 h-4" />
+                <span>Encrypted & Secure</span>
+              </div>
+
               <div className="flex items-center space-x-2 text-sm text-gray-600">
                 <CheckCircle className="w-4 h-4 text-green-500" />
                 <span>Free Forever</span>
@@ -67,6 +75,7 @@ const Home = () => {
             setNotification={setNotification}
           />}
           {currentView === "files" && <FilesView/>}
+          {currentView === "settings" && <SettingsView/>}
         </main>
       </div>
       {/* Notification */}
