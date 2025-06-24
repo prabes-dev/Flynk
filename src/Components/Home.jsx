@@ -187,7 +187,7 @@ const Home = () => {
       {/* Sidebar Overlay */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-50 z-30 lg:hidden transition-opacity duration-300"
+          className="fixed inset-0 bg-[rgba(0,_0,_0,_0.399)] z-30 lg:hidden transition-opacity duration-300"
           onClick={handleSidebarClose}
           aria-label="Close sidebar"
         />

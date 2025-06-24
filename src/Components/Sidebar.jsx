@@ -1,6 +1,13 @@
 import { X, Upload, FileText, Settings, LogIn } from "lucide-react";
+import logo from "../assets/logo.png"; 
 
-const Sidebar = ({ currentView, setCurrentView, uploadedFiles, sidebarOpen, setSidebarOpen }) => {
+const Sidebar = ({
+  currentView,
+  setCurrentView,
+  uploadedFiles,
+  sidebarOpen,
+  setSidebarOpen,
+}) => {
   return (
     <div
       className={`fixed inset-y-0 left-0 z-40 h-screen w-64 bg-white shadow-lg transform ${
@@ -8,9 +15,7 @@ const Sidebar = ({ currentView, setCurrentView, uploadedFiles, sidebarOpen, setS
       } transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0`}
     >
       <div className="flex items-center justify-between p-3 border-b">
-        <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-          Flynk
-        </h1>
+        <img src={logo} alt="Flynk Logo" className="h-10 w-auto max-w-[150px] ml-4" />
         <button
           onClick={() => setSidebarOpen(false)}
           className="lg:hidden p-2 rounded-lg hover:bg-gray-100"

@@ -99,8 +99,7 @@ const UploadView = ({
 
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
-        const fileExt = file.name.split(".").pop();
-        const fileName = `${Date.now()}_${i}.${fileExt}`;
+        const fileName = file.name;
         const filePath = `${fileName}`;
 
         // Update progress for current file
@@ -109,7 +108,7 @@ const UploadView = ({
 
         const { data, error } = await supabase.storage
           .from("uploads")
-          .upload(filePath, file);
+          .upload(filePath, file, {upsert: false});
         console.log("data:", data);
         if (error) {
           throw error;
