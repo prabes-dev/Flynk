@@ -1,4 +1,4 @@
-import { X, Upload, FileText } from "lucide-react";
+import { X, Upload, FileText, Settings, LogIn } from "lucide-react";
 
 const Sidebar = ({ currentView, setCurrentView, uploadedFiles, sidebarOpen, setSidebarOpen }) => {
   return (
