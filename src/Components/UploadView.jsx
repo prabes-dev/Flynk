@@ -168,7 +168,7 @@ const UploadView = ({
           <div className="p-2 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl mr-3 shadow-md">
             <Settings className="w-5 h-5 text-white" />
           </div>
-          Upload Settings <h1 className="ml-4 text-xs text-slate-500">(Currently in development)</h1>
+          Upload Settings <p className="ml-4 text-xs text-slate-500">(Currently in development)</p>
         </h3>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
