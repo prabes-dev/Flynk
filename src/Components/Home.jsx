@@ -1,13 +1,13 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import UploadView from "./UploadView";
-import FilesView from "./FilesView";
+import FilesView from "./FilesView"; // Fixed typo: was "FIlesView"
 import Sidebar from "./Sidebar";
 import { Menu, CheckCircle, AlertTriangle, X } from "lucide-react";
 
 // Constants
-const ROUTES = {
-  UPLOAD: "/",
-  FILES: "/files"
+const VIEWS = {
+  UPLOAD: "upload",
+  FILES: "files"
 };
 
 const NOTIFICATION_TYPES = {
@@ -20,62 +20,20 @@ const DEFAULT_UPLOAD_SETTINGS = {
   expiresInHours: 24,
 };
 
-// Custom Router Hook
-const useRouter = () => {
-  const [currentPath, setCurrentPath] = useState(window.location.pathname);
-
-  const navigate = useCallback((path) => {
-    if (path !== currentPath) {
-      window.history.pushState({}, '', path);
-      setCurrentPath(path);
-    }
-  }, [currentPath]);
-
-  const replace = useCallback((path) => {
-    if (path !== currentPath) {
-      window.history.replaceState({}, '', path);
-      setCurrentPath(path);
-    }
-  }, [currentPath]);
-
-  useEffect(() => {
-    const handlePopState = () => {
-      setCurrentPath(window.location.pathname);
-    };
-
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
-  }, []);
-
-  return { currentPath, navigate, replace };
-};
-
 const Home = () => {
-  const { currentPath, navigate } = useRouter();
-  
-  // State management
+  // State management with better organization
   const [dragActive, setDragActive] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState([]);
+  const [currentView, setCurrentView] = useState(VIEWS.UPLOAD);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [notification, setNotification] = useState(null);
   const [uploadSettings, setUploadSettings] = useState(DEFAULT_UPLOAD_SETTINGS);
 
   const fileInputRef = useRef(null);
 
-  // Get current view from URL
-  const getCurrentView = useCallback(() => {
-    switch (currentPath) {
-      case ROUTES.FILES:
-        return 'files';
-      case ROUTES.UPLOAD:
-      default:
-        return 'upload';
-    }
-  }, [currentPath]);
-
-  // Memoized handlers
+  // Memoized handlers for better performance
   const handleSidebarToggle = useCallback(() => {
     setSidebarOpen(prev => !prev);
   }, []);
@@ -85,22 +43,12 @@ const Home = () => {
   }, []);
 
   const handleViewChange = useCallback((view) => {
-    // Navigate to the appropriate route
-    switch (view) {
-      case 'files':
-        navigate(ROUTES.FILES);
-        break;
-      case 'upload':
-      default:
-        navigate(ROUTES.UPLOAD);
-        break;
-    }
-    
+    setCurrentView(view);
     // Auto-close sidebar on mobile after view change
     if (window.innerWidth < 1024) {
       setSidebarOpen(false);
     }
-  }, [navigate]);
+  }, []);
 
   const handleNotificationClose = useCallback(() => {
     setNotification(null);
@@ -123,25 +71,11 @@ const Home = () => {
       if (e.key === 'Escape' && sidebarOpen) {
         setSidebarOpen(false);
       }
-      
-      // Optional: Add keyboard shortcuts for navigation
-      if (e.ctrlKey || e.metaKey) {
-        switch (e.key) {
-          case '1':
-            e.preventDefault();
-            handleViewChange('upload');
-            break;
-          case '2':
-            e.preventDefault();
-            handleViewChange('files');
-            break;
-        }
-      }
     };
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [sidebarOpen, handleViewChange]);
+  }, [sidebarOpen]);
 
   // Render notification component
   const renderNotification = () => {
@@ -176,12 +110,10 @@ const Home = () => {
     );
   };
 
-  // Render current view based on route
+  // Render current view
   const renderCurrentView = () => {
-    const currentView = getCurrentView();
-    
     switch (currentView) {
-      case 'upload':
+      case VIEWS.UPLOAD:
         return (
           <UploadView 
             setUploadSettings={setUploadSettings}
@@ -197,7 +129,7 @@ const Home = () => {
             setNotification={setNotification}
           />
         );
-      case 'files':
+      case VIEWS.FILES:
         return (
           <FilesView 
             uploadedFiles={uploadedFiles}
@@ -205,36 +137,15 @@ const Home = () => {
           />
         );
       default:
-        // 404 Page
-        return (
-          <div className="text-center py-12">
-            <h2 className="text-2xl font-bold text-gray-700 mb-2">Page Not Found</h2>
-            <p className="text-gray-500 mb-4">The page you're looking for doesn't exist.</p>
-            <button
-              onClick={() => handleViewChange('upload')}
-              className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              Go Home
-            </button>
-          </div>
-        );
+        return <div className="text-gray-500">View not found</div>;
     }
   };
-
-  // Set initial route if needed
-  useEffect(() => {
-    // If we're on an unknown route, redirect to home
-    const validPaths = Object.values(ROUTES);
-    if (!validPaths.includes(currentPath)) {
-      navigate(ROUTES.UPLOAD);
-    }
-  }, [currentPath, navigate]);
 
   return (
     <div className="flex min-h-screen">
       {/* Sidebar */}
       <Sidebar
-        currentView={getCurrentView()}
+        currentView={currentView}
         setCurrentView={handleViewChange}
         uploadedFiles={uploadedFiles}
         sidebarOpen={sidebarOpen}
@@ -243,7 +154,7 @@ const Home = () => {
       />
 
       {/* Main Content */}
-      <div className="flex-1 transition-all duration-300">
+      <div className="flex-1 transition-all duration-300 ">
         {/* Header */}
         <header className="bg-white shadow-sm border-b px-6 py-5">
           <div className="flex items-center justify-between">
@@ -259,12 +170,6 @@ const Home = () => {
               <div className="flex items-center space-x-2 text-sm text-gray-600">
                 <CheckCircle className="w-4 h-4 text-green-500" />
                 <span>Free Forever</span>
-              </div>
-              
-              {/* Optional: Breadcrumb */}
-              <div className="hidden sm:flex items-center space-x-2 text-sm text-gray-500">
-                <span>/</span>
-                <span className="capitalize">{getCurrentView()}</span>
               </div>
             </div>
           </div>
